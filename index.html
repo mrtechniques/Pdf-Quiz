@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Quiz App</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  text-align: center;
+}
+.container { max-width: 800px; margin: auto; padding: 20px; }
+button {
+  padding: 10px 15px;
+  margin: 10px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+.option { display:block; background:#1e293b; margin:8px; }
+.correct { background:green; }
+.wrong { background:red; }
+.hidden { display:none; }
+input { padding:10px; border-radius:8px; }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>📘 PDF Quiz App</h1>
+
+<!-- LOGIN -->
+<div id="login">
+  <input id="username" placeholder="Enter username">
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- UPLOAD -->
+<div id="upload" class="hidden">
+  <h3>Upload PDF</h3>
+  <input type="file" id="pdfUpload">
+</div>
+
+<!-- MODULE -->
+<div id="modules"></div>
+
+<!-- QUIZ -->
+<div id="quiz"></div>
+
+<!-- SCORE -->
+<h2 id="score"></h2>
+
+<!-- LEADERBOARD -->
+<h3>🏆 Leaderboard</h3>
+<div id="leaderboard"></div>
+
+<!-- HISTORY -->
+<h3>📊 History</h3>
+<div id="history"></div>
+
+</div>
+
+<script>
+let user = "";
+let data = {};
+let currentModule, index=0, score=0;
+
+// LOGIN
+function login(){
+  user = document.getElementById("username").value;
+  if(!user) return alert("Enter name");
+  localStorage.setItem("user", user);
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("upload").classList.remove("hidden");
+}
+
+// PDF EXTRACT
+document.getElementById('pdfUpload').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async function() {
+    const typedarray = new Uint8Array(this.result);
+    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(" ") + "\n";
+    }
+
+    processText(text);
+  };
+
+  reader.readAsArrayBuffer(file);
+});
+
+// TEXT → JSON
+function processText(text) {
+  let unit = "Unit 1";
+  data[unit] = [];
+
+  let lines = text.split("\n");
+
+  lines.forEach(line => {
+    if (line.toLowerCase().includes("unit")) {
+      unit = line.trim();
+      data[unit] = [];
+    }
+
+    if (line.includes("?")) {
+      data[unit].push({
+        q: line,
+        options: ["A","B","C","D"],
+        answer: "A"
+      });
+    }
+  });
+
+  loadModules();
+}
+
+// MODULE UI
+function loadModules(){
+  const div = document.getElementById("modules");
+  div.innerHTML = "<h2>Select Unit</h2>";
+
+  Object.keys(data).forEach(m=>{
+    let btn = document.createElement("button");
+    btn.innerText = m;
+    btn.onclick = ()=>startQuiz(m);
+    div.appendChild(btn);
+  });
+}
+
+// START QUIZ
+function startQuiz(m){
+  currentModule = m;
+  index = 0;
+  score = 0;
+  loadQuestion();
+}
+
+// LOAD QUESTION
+function loadQuestion(){
+  let qObj = data[currentModule][index];
+  let quiz = document.getElementById("quiz");
+
+  quiz.innerHTML = `<h3>${qObj.q}</h3>`;
+
+  qObj.options.forEach(opt=>{
+    let btn = document.createElement("button");
+    btn.className="option";
+    btn.innerText = opt;
+    btn.onclick = ()=>check(btn, opt, qObj.answer);
+    quiz.appendChild(btn);
+  });
+}
+
+// CHECK ANSWER
+function check(btn, selected, correct){
+  if(selected===correct){
+    btn.classList.add("correct");
+    score++;
+  } else {
+    btn.classList.add("wrong");
+  }
+
+  setTimeout(()=>{
+    index++;
+    if(index < data[currentModule].length){
+      loadQuestion();
+    } else {
+      finish();
+    }
+  },800);
+}
+
+// FINISH
+function finish(){
+  document.getElementById("quiz").innerHTML="";
+  document.getElementById("score").innerText = "Score: "+score;
+
+  saveScore();
+  loadLeaderboard();
+  loadHistory();
+}
+
+// SAVE SCORE
+function saveScore(){
+  let scores = JSON.parse(localStorage.getItem("scores")||"[]");
+  scores.push({user, score, unit: currentModule, time: new Date().toLocaleString()});
+  localStorage.setItem("scores", JSON.stringify(scores));
+}
+
+// LEADERBOARD
+function loadLeaderboard(){
+  let scores = JSON.parse(localStorage.getItem("scores")||"[]");
+  scores.sort((a,b)=>b.score-a.score);
+
+  let div = document.getElementById("leaderboard");
+  div.innerHTML="";
+
+  scores.slice(0,5).forEach(s=>{
+    div.innerHTML += `<p>${s.user} - ${s.score}</p>`;
+  });
+}
+
+// HISTORY
+function loadHistory(){
+  let scores = JSON.parse(localStorage.getItem("scores")||"[]");
+
+  let div = document.getElementById("history");
+  div.innerHTML="";
+
+  scores.filter(s=>s.user===user).forEach(s=>{
+    div.innerHTML += `<p>${s.unit} - ${s.score} (${s.time})</p>`;
+  });
+}
+</script>
+
+</body>
+</html>
