@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module-wise Quiz</title>
+  <style>
+    body { font-family: Arial; background:#0f172a; color:#fff; text-align:center; }
+    .container { max-width:700px; margin:auto; padding:20px; }
+    button { padding:10px 20px; margin:10px; border:none; border-radius:8px; cursor:pointer; }
+    .option { display:block; margin:10px; padding:10px; background:#1e293b; }
+    .correct { background:green; }
+    .wrong { background:red; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Quiz App</h1>
+    <div id="moduleSelection"></div>
+    <div id="quiz"></div>
+    <h2 id="score"></h2>
+  </div><script>
+const data = {
+  "Module 1": [
+    {
+      q: "Sample Question 1?",
+      options: ["A","B","C","D"],
+      answer: "A"
+    }
+  ],
+  "Module 2": [
+    {
+      q: "Sample Question 2?",
+      options: ["A","B","C","D"],
+      answer: "B"
+    }
+  ]
+};
+
+let currentModule = null;
+let index = 0;
+let score = 0;
+
+const moduleDiv = document.getElementById("moduleSelection");
+const quizDiv = document.getElementById("quiz");
+
+function loadModules(){
+  moduleDiv.innerHTML = "<h2>Select Module</h2>";
+  Object.keys(data).forEach(mod=>{
+    const btn = document.createElement("button");
+    btn.innerText = mod;
+    btn.onclick = ()=>startQuiz(mod);
+    moduleDiv.appendChild(btn);
+  });
+}
+
+function startQuiz(mod){
+  currentModule = mod;
+  index = 0;
+  score = 0;
+  moduleDiv.style.display = "none";
+  loadQuestion();
+}
+
+function loadQuestion(){
+  const qObj = data[currentModule][index];
+  quizDiv.innerHTML = `<h3>${qObj.q}</h3>`;
+
+  qObj.options.forEach(opt=>{
+    const btn = document.createElement("button");
+    btn.className = "option";
+    btn.innerText = opt;
+    btn.onclick = ()=>checkAnswer(btn, opt, qObj.answer);
+    quizDiv.appendChild(btn);
+  });
+}
+
+function checkAnswer(btn, selected, correct){
+  if(selected === correct){
+    btn.classList.add("correct");
+    score++;
+  } else {
+    btn.classList.add("wrong");
+  }
+
+  setTimeout(()=>{
+    index++;
+    if(index < data[currentModule].length){
+      loadQuestion();
+    } else {
+      showScore();
+    }
+  },1000);
+}
+
+function showScore(){
+  quizDiv.innerHTML = "";
+  document.getElementById("score").innerText = `Score: ${score}`;
+}
+
+loadModules();
+</script></body>
+</html>
